@@ -1,0 +1,18 @@
+plugins {
+    id 'java'
+}
+
+group 'org.world'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    implementation 'org.soot-oss:soot:4.1.0','commons-cli:commons-cli:1.4'
+    testImplementation 'junit:junit:4.13.1'
+}
