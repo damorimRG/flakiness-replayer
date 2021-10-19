@@ -53,4 +53,4 @@ echo $TARGET_CP
 exit
 ### TO COMPLETE
 
-java -cp ${INSTR_CP}:${TARGET_DP} instr.MainDriver --overHead ${overhead} -minimalDelay ${minimal_delay} --csvTimes ${csv_times} --randomSeed ${random_seed}
+java -cp ${INSTR_CP}:${TARGET_CP} instr.MainDriver --overHead ${overhead} -minimalDelay ${minimal_delay} --csvTimes ${csv_times} --randomSeed ${random_seed}
