@@ -16,3 +16,9 @@ dependencies {
     implementation 'org.soot-oss:soot:4.1.0','commons-cli:commons-cli:1.4'
     testImplementation 'junit:junit:4.13.1'
 }
+
+
+
+tasks.register('printCP') {
+    println "Classpath = ${sourceSets.main.compileClasspath.asPath}";
+}
