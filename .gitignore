@@ -29,3 +29,4 @@ build
 out.txt
 *~
 downloads
+!gradle/wrapper/gradle-wrapper.jar
