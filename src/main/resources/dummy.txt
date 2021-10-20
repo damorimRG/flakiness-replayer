@@ -1,1 +1,1 @@
-dummy
+this file is here to ensure main/resources is included in the repo. that directory is important to facilitate debugging on intellij.
