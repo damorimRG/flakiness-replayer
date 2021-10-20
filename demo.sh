@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## $> bash demo.sh
+## call format: $> bash demo.sh
 
 # defines the current directory
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -9,6 +9,7 @@ HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 ## for running tests.
 function buildTarget(){
     SLUG=$1
+    mkdir -p ${HERE}/downloads
     (cd ${HERE}/downloads;
      git clone --depth 1 $SLUG
      DIRNAME=$(echo $SLUG | rev | cut -f1 -d/ | cut -f2 -d\. | rev)
@@ -21,16 +22,18 @@ function buildTarget(){
      app_classes=${mvn_target}/target/classes
      test_classes=${mvn_target}/target/test-classes
      temp_file=$(mktemp)
-     mvn dependency:build-classpath -Dmdep.outputFile=$temp_file
+     mvn dependency:build-classpath -Dmdep.outputFile=$temp_file 
      ## return of the bash function
-     echo ${app_classes}:${test_classes}:$(cat $temp_file)
+     ##echo ${app_classes}:${test_classes}:$(cat $temp_file)
+     ## for debugging --->
+     echo ${app_classes}:${test_classes}:$(cat $temp_file) > /tmp/target.classpath
     )
 }
 
 ## this command stores the entire implementation classpath (obtained
 ## from gradle) in variable $CP with the goal of running the Main
 ## function in the command line.
-INSTR_CP=$(./gradlew printCP | grep "Classpath =" | cut -f2 -d=)
+INSTR_CP=$(./gradlew printCP | grep "Classpath =" | cut -f2 -d= | sed 's/^ *//g')
 
 ## clean-build the instrumentation project
 ./gradlew clean compileTestJava
@@ -44,13 +47,12 @@ INSTR_CP=$(./gradlew printCP | grep "Classpath =" | cut -f2 -d=)
 # parameters
 overhead='0.1'
 minimal_delay='10'
-csv_times='output.csv'
+csv_times='classes.csv' ## <- rename file
 random_seed='43252'
 
-TARGET_CP=$(buildTarget "git@github.com:alibaba/fastjson.git")
-echo $TARGET_CP
+buildTarget "git@github.com:alibaba/fastjson.git"
 
-exit
-### TO COMPLETE
-
-java -cp ${INSTR_CP}:${TARGET_CP} instr.MainDriver --overHead ${overhead} -minimalDelay ${minimal_delay} --csvTimes ${csv_times} --randomSeed ${random_seed}
+java -cp "${HERE}/build/classes/java/main:${INSTR_CP}" instr.MainDriver \
+     --overHead ${overhead} \
+     --minimalDelay ${minimal_delay} \
+     --randomSeed ${random_seed}

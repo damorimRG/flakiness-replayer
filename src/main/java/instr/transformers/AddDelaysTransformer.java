@@ -23,12 +23,12 @@ public class AddDelaysTransformer extends BodyTransformer {
   // script parameters
   double overhead;
   long minimalDelay;
-  String csvTimes;
+//  String csvTimes;
   long randomSeed;
-  boolean debuger;
+  boolean debug;
 
   // info about running times (avg) of each test case to be instrumented
-  Map<String, Long> testTime;
+//  Set<String> methodsToInstrument;
   SootClass threadClass, printClass;
   SootMethod sleepMethod, printMethod;
 
@@ -36,15 +36,16 @@ public class AddDelaysTransformer extends BodyTransformer {
   ArrayList<String> p;
 
 
-  public AddDelaysTransformer(double overhead, long minimalDelay, String csvTimes, long randomSeed, boolean debuger) {
+  public AddDelaysTransformer(double overhead, long minimalDelay, long randomSeed, boolean debug) {
     this.overhead = overhead;
     this.minimalDelay = minimalDelay;
-    this.csvTimes = csvTimes;
+//    this.csvTimes = csvTimes;
     this.randomSeed = randomSeed;
-    this.debuger = debuger;
+    this.debug = debug;
 
-    this.testTime = new HashMap<String, Long>();
-    this.testTime = readFile(csvTimes);
+//    this.methodsToInstrument = new HashSet<String>();
+//    this.methodsToInstrument = readFile(methodsToInstrumentFileName);
+//    this.methodsToInstrument = null;
 
     // soot supporting classes
     this.threadClass = Scene.v().loadClassAndSupport("java.lang.Thread");
@@ -59,22 +60,22 @@ public class AddDelaysTransformer extends BodyTransformer {
     this.ran = new Random(randomSeed);
   }
 
-  private final Map<String, Long> readFile(String csvFile) {
-    Map<String, Long> map = new HashMap<String, Long>();
-    try {
-      BufferedReader br = new BufferedReader(new FileReader(csvFile));
-      String line = null;
-      while ((line = br.readLine()) != null) {
-        String str[] = line.split(",");
-        double timeMillis = Double.parseDouble(str[1]) * 1000;
-        map.put(str[0], (long) timeMillis);
-      }
-    } catch (IOException ioException) {
-      System.err.print("fatal error! csv file can't be found " + csvFile);
-      System.exit(1);
-    }
-    return map;
-  }
+//  private final Set<String> readFile(String csvFile) {
+//    Map<String, Long> map = new HashMap<String, Long>();
+//    try {
+//      BufferedReader br = new BufferedReader(new FileReader(csvFile));
+//      String line = null;
+//      while ((line = br.readLine()) != null) {
+//        String str[] = line.split(",");
+//        double timeMillis = Double.parseDouble(str[1]) * 1000;
+//        map.put(str[0], (long) timeMillis);
+//      }
+//    } catch (IOException ioException) {
+//      System.err.print("fatal error! csv file can't be found " + csvFile);
+//      System.exit(1);
+//    }
+//    return map;
+//  }
 
   /* internalTransform goes through a method body and inserts
     * counter instructions before an INVOKESTATIC instruction
@@ -111,11 +112,13 @@ public class AddDelaysTransformer extends BodyTransformer {
       }
     }
 
-    String testString = method.getDeclaringClass().getName() + "#" + method.getName();
+    String methodID = method.getDeclaringClass().getName() + "#" + method.getName();
 
-    // instrument if it is a setup/teardown method or if it is a listed test method
+    // DEBUG!
+    if (!methodID.equals("com.alibaba.json.bvt.parser.autoType.AutoTypeTest2_deny#test_0")) {
+      return;
+    }
 
-    if (!isTearDownSetup && !testTime.keySet().contains(testString)) return;
     System.out.println("  instrumenting test method : " + method.getSignature());
 
     // get body's unit as a chain
@@ -124,7 +127,6 @@ public class AddDelaysTransformer extends BodyTransformer {
     // get a snapshot iterator of the unit since we are going to
     // mutate the chain when iterating over it.
     Iterator stmtIt = units.snapshotIterator();
-
 
     // used to find loops
     LoopFinder lf = new LoopFinder();
@@ -164,17 +166,17 @@ public class AddDelaysTransformer extends BodyTransformer {
 
     long totalTime = 0;
     long delayMillis = minimalDelay;
-    if (!isTearDownSetup) {
-      totalTime = testTime.get(testString);
-      // totalTime == 0 implies delayMillis == minimalDelay
-      if (totalTime != 0) {
-        delayMillis = (long) ((totalTime * overhead) / numberOfDelays);
-        // in a few cases the delayMillis is 0, for example when the test time is 0.001
-        if (delayMillis == 0){
-          delayMillis = minimalDelay;
-        }
-      }
-    }
+//    if (!isTearDownSetup) {
+//      totalTime = testTime.get(methodID);
+//      // totalTime == 0 implies delayMillis == minimalDelay
+//      if (totalTime != 0) {
+//        delayMillis = (long) ((totalTime * overhead) / numberOfDelays);
+//        // in a few cases the delayMillis is 0, for example when the test time is 0.001
+//        if (delayMillis == 0){
+//          delayMillis = minimalDelay;
+//        }
+//      }
+//    }
 
     // do the actual instrumentation now that we know length of each delayMillis
     for (Stmt stmt : tobe_instrumented) {
@@ -187,7 +189,7 @@ public class AddDelaysTransformer extends BodyTransformer {
     }
     long totalTimeOfSleeps = tobe_instrumented.size() * delayMillis;
     System.out.println("  added " + tobe_instrumented.size() + " sleeps");
-    if (lastStmt != null && this.debuger) {
+    if (lastStmt != null && this.debug) {
       String report = "   " +  method.getSignature()+ "INS --> TotalSleeps: " + tobe_instrumented.size() +
               ". delayMillis: " + delayMillis + ". totalTimeOfAllSleeps: " + (totalTimeOfSleeps/1000.0) +
               ". totalTimeTest: " + (totalTime/1000.0) + ". totalTimeWithSleeps: " + (totalTimeOfSleeps + totalTime)/1000.0 + ";";
@@ -197,6 +199,6 @@ public class AddDelaysTransformer extends BodyTransformer {
       units.insertBefore(reportStmt,lastStmt);
     }
     //testname, normalTimeTest, timeTestWithSlepps
-    this.salveTestTimeInCsv(testString,totalTime, (totalTimeOfSleeps + totalTime));
+    // this.salveTestTimeInCsv(methodID,totalTime, (totalTimeOfSleeps + totalTime));
   }
 }

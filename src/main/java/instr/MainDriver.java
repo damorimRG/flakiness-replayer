@@ -5,17 +5,13 @@ package instr;
 /* import necessary soot pppackages */
 import instr.transformers.AddDelaysTransformer;
 import org.apache.commons.cli.*;
+import org.apache.commons.io.IOUtils;
 import soot.PackManager;
 import soot.Transform;
 import soot.Transformer;
 import soot.options.Options;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,15 +23,10 @@ public class MainDriver {
 
     public static void main(String[] args) {
         /* check the arguments */
-        if (args.length == 0) {
-            System.err.println("Usage: java MainDriver [options] classname");
-            exit(0);
-        }
         final org.apache.commons.cli.Options options = new org.apache.commons.cli.Options();
-//        options.addOption(new Option("c", "className", true, "[REQUIRED] Classname to be instrumented"));
         options.addOption(new Option("o", "overHead", true, "[REQUIRED] overHead of time: 0.1 - 1"));
         options.addOption(new Option("m", "minimalDelay", true, "[REQUIRED] Turn on extract: Number in milisseconds"));
-        options.addOption(new Option("csv", "csvTimes", true, "[REQUIRED] csv file with tests names and time."));
+//        options.addOption(new Option("csv", "csvTimes", true, "[REQUIRED] csv file with tests names and time."));
         options.addOption(new Option("r", "randomSeed", true, "[REQUIRED] Seed of Random()."));
         options.addOption(new Option("d", "debugger", false, "Enable debugger mode"));
         CommandLineParser parser = new DefaultParser();
@@ -47,15 +38,18 @@ public class MainDriver {
 
         try {
             CommandLine cmd = parser.parse(options, args);
-            if (! (cmd.hasOption("o") && cmd.hasOption("m") && cmd.hasOption("csv") && cmd.hasOption("r"))){
+            if (! (cmd.hasOption("o") && cmd.hasOption("m") && cmd.hasOption("r"))){
                 throw new Exception("Erro, without the required arguments");
             }
 //            String className = cmd.getOptionValue( "className");
-
             overhead = Double.parseDouble(cmd.getOptionValue("overHead"));
             minimalDelay = Long.parseLong(cmd.getOptionValue("minimalDelay"));
-            csvTimes = cmd.getOptionValue("csvTimes" );
-            classNames = loadFromFile(csvTimes);
+//            csvTimes = cmd.getOptionValue("csvTimes" );
+//            classNames = loadFromFile(csvTimes);
+            // debugging --->
+            classNames = new String[] {
+                    "com.alibaba.json.bvt.parser.TypeUtilsTest_interface",
+                    "com.alibaba.json.bvt.parser.autoType.AutoTypeTest2_deny"};
             randomSeed = Long.parseLong(cmd.getOptionValue("randomSeed"));
             if (cmd.hasOption("d")){
                 debugger = true;
@@ -63,7 +57,6 @@ public class MainDriver {
 
         } catch (Exception e) {
             e.printStackTrace();
-
             System.out.println("Error parsing command-line arguments!");
             System.out.println("Please, follow the instructions below:");
             HelpFormatter formatter = new HelpFormatter();
@@ -75,21 +68,24 @@ public class MainDriver {
         String javapath = System.getProperty("java.class.path");
         String jredir = System.getProperty("java.home")+"/lib/rt.jar";
         String path = javapath+File.pathSeparator+jredir;
-        // debugging
-//        String testpath = System.getProperty("user.dir") + "/target/test-classes";
-//        String mvnrepo = System.getProperty("user.home") + "/.m2/repository";
-//        path = testpath + File.pathSeparator + path;
-//        path = mvnrepo + "/junit/junit/4.13.2/junit-4.13.2.jar" + File.pathSeparator + path;
-//        path = mvnrepo + "/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar" + File.pathSeparator + path;
+
+
+        // debugging (see "for debugging")
+        try(FileInputStream inputStream = new FileInputStream("/tmp/target.classpath")) {
+            path = path + File.pathSeparator + IOUtils.toString(inputStream);
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
 
         Options.v().set_soot_classpath(path);
+
         /* add a phase to transformer pack by call Pack.add */
         Pack jtp = PackManager.v().getPack("jtp");
         // new PrintFixedMethodTransformer();
         // new InvokeStaticTransformer();
         // new SleepTransformer();
         // new SleepInvokerTransformer();
-        Transformer transformer = new AddDelaysTransformer(overhead, minimalDelay, csvTimes, randomSeed, debugger);
+        Transformer transformer = new AddDelaysTransformer(overhead, minimalDelay, randomSeed, debugger);
         jtp.add(new Transform("jtp.instrumenter", transformer));
 
         /* Give control to Soot to process all options,
